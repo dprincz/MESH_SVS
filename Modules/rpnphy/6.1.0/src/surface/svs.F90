@@ -313,7 +313,6 @@ subroutine svs(BUS, BUSSIZ, PTSURF, PTSURFSIZ, DT, KOUNT, TRNCH, N, M, NK)
            BUS(x(ISOIL  ,1,1)), &  
            BUS(x(SNOMA  ,1,1)), BUS(x(SNVMA  ,1,1)), &   
            BUS(x(SNORO  ,1,1)), BUS(x(SNVRO  ,1,1)), &  
-           BUS(x(TSNOW  ,1,2)), BUS(x(TSNOWVEG  ,1,2)), &
            BUS(x(VEGH   ,1,1)), &  
            BUS(x(VEGL   ,1,1)), BUS(x(CGSAT  ,1,1)), &  
            BUS(x(WSAT   ,1,1)), BUS(x(WWILT  ,1,1)), &  
@@ -339,7 +338,7 @@ subroutine svs(BUS, BUSSIZ, PTSURF, PTSURFSIZ, DT, KOUNT, TRNCH, N, M, NK)
            ALVA, BUS(x(LAIVA  ,1,1)), CVPA, EVA, BUS(x(Z0HA ,1,1)),&
            BUS(x(Z0MVG,1,1)), RGLA, STOMRA,   &
            GAMVA, N,    &
-           BUS(x(SOILHCAPZ,1,1)), BUS(x(SOILCONDZ,1,1)), BUS(x(CONDDRY   ,1,1)), BUS(x(CONDSLD  ,1,1)))
+           BUS(x(SOILHCAPZ,1,1)), BUS(x(SOILCONDZ,1,1)), BUS(x(CONDDRY   ,1,1)),BUS(x(CONDMINFAC ,1,1)), BUS(x(CONDSLD  ,1,1)))
 !
 !     
 
@@ -529,7 +528,7 @@ subroutine svs(BUS, BUSSIZ, PTSURF, PTSURFSIZ, DT, KOUNT, TRNCH, N, M, NK)
            bus(x(impervu ,1,1)), bus(x(vegl    ,1,1)),&
            bus(x(vegh    ,1,1)), bus(x(psngrvl ,1,1)),&
            bus(x(psnvha  ,1,1)), bus(x(acroot  ,1,1)),&
-           wrmax,                bus(x(wsat    ,1,1)),&
+           wrmax, bus(x(wmpfac,1,1)), bus(x(wsat    ,1,1)),&
            bus(x(wunfrz  ,1,1)),&
            bus(x(ksat    ,1,1)), bus(x(psisat  ,1,1)),&
            bus(x(bcoef   ,1,1)), bus(x(fbcof   ,1,1)),&
@@ -544,8 +543,7 @@ subroutine svs(BUS, BUSSIZ, PTSURF, PTSURFSIZ, DT, KOUNT, TRNCH, N, M, NK)
            bus(x(latflw  ,1,1)), &
            bus(x(runofftot ,1,indx_soil)),           &
            bus(x(satsfc  ,1,1)),N,  bus(x(watpond ,1,1)), &
-           bus(x(maxpond ,1,1)),&
-           bus(x(sand  ,1,1)), bus(x(clay ,1,1)))
+           bus(x(maxpond ,1,1)))
 
 
 

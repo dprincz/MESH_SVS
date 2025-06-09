@@ -23,7 +23,7 @@ subroutine inisoili_svs(ni, trnch)
 !!!#include <arch_specific.hf>
 
    integer ni, trnch
-   integer OPT_SOILCOND
+   integer OPT_SOILCOND, MP_OPT
 
    !@Author  Maria Abrahamowicz, Stephane Belair , Vincent Fortin (20xx)
    !@Object  Compute soil properties for given soil texture. Compute these properties on 
@@ -35,16 +35,18 @@ subroutine inisoili_svs(ni, trnch)
 
    integer :: i, k, kk, jj
    REAL b, usb, fb, crit1_wfcint, crit2_wfcint, ts
+
+   REAL, parameter :: mp_alpha = 0.85
+   REAL, parameter :: mp_beta = 3.64 !Weighted sand-to-clay ratio for the average tile over the GLSL domain
    
    ! "geo" variables are on the levels of the geophysical soil texture datbase
    REAL, dimension(ni,nl_stp) :: wsat_geo, wwilt_geo, wfc_geo, b_geo, psisat_geo, &
-           ksat_geo, wfcint_geo, fb_geo, quartz_geo,rhosoil_geo,conddry_geo,condsld_geo , wunfrz_geo
+           ksat_geo, wfcint_geo, fb_geo, quartz_geo,rhosoil_geo,conddry_geo, condminfac_geo, condsld_geo , wunfrz_geo, wmpfac_geo
    real, pointer, dimension(:) :: zcgsat, zgrkef, zdraindens, zslop
 
    ! variables on the levels of SVS
    real, pointer, dimension(:,:) :: zbcoef, zclay, zfbcof, zksat, zpsisat, zsand, zwfc, zwfcint, zwsat, zwwilt, & 
-                                         zconddry, zcondsld , zquartz, zrhosoil,zwunfrz
-
+                                         zconddry, zcondminfac, zcondsld , zquartz, zrhosoil, zwunfrz, zwmpfac
   
 #define MKPTR1D(NAME1,NAME2) nullify(NAME1); if (vd%NAME2%i > 0 .and. associated(busptr(vd%NAME2%i)%ptr)) NAME1(1:ni) => busptr(vd%NAME2%i)%ptr(:,trnch)
 #define MKPTR2D(NAME1,NAME2) nullify(NAME1); if (vd%NAME2%i > 0 .and. associated(busptr(vd%NAME2%i)%ptr)) NAME1(1:ni,1:vd%NAME2%mul*vd%NAME2%niveaux) => busptr(vd%NAME2%i)%ptr(:,trnch)
@@ -64,15 +66,21 @@ subroutine inisoili_svs(ni, trnch)
    MKPTR2D(zwfcint, wfcint)
    MKPTR2D(zwsat, wsat)
    MKPTR2D(zwunfrz, wunfrz)
+   MKPTR2D(zwmpfac, wmpfac)
    MKPTR2D(zwwilt , wwilt)
    MKPTR2D(zconddry , conddry)
+   MKPTR2D(zcondminfac , condminfac)
    MKPTR2D(zcondsld , condsld)
    MKPTR2D(zrhosoil , rhosoil)
    MKPTR2D(zquartz , quartz)
 
-  OPT_SOILCOND = 1 ! Option for the Calculation of soil thermal conductivity 
-               ! 0: use the model from Peters-Lidard et al. (1998) for frozen soil that involve the Kersten number (Johanssen, 1975)
-               ! 1 : Use the model from Tian et al. (2016)
+   OPT_SOILCOND = 0 ! Option for the Calculation of soil thermal conductivity 
+                ! 0: use the model from Peters-Lidard et al. (1998) for frozen soil that involve the Kersten number (Johanssen, 1975)
+                ! 1 : Use the model from Tian et al. (2016)
+
+   MP_OPT = 0
+  		  ! 0: No macropores
+  		  ! 1: Macropores are activated (change thehydraulic conductivity based on water content threshold)
 
    ! calculate soil parameters on native GEO layers, and then map them unto model layers. 
    ! calculate weights to be used in phybusinit.... because here... we are
@@ -119,7 +127,7 @@ subroutine inisoili_svs(ni, trnch)
          else
             wfcint_geo(i,k) = wfc_geo(i,k)
          endif
-
+         
        ! Compute soil thermal properties for soil freezing
 
 !       Quartz content (ref : NL95 & PL98)):
@@ -142,6 +150,10 @@ subroutine inisoili_svs(ni, trnch)
         conddry_geo(i,k) = (0.135*rhosoil_geo(i,k) + 64.7) / &
                         (2700. - 0.947*rhosoil_geo(i,k))
 
+!       factor used to compute the thermal conductivity of soil mineral (only relevant if soil_cond = TIAN2016)
+        condminfac_geo(i,k) = (0.182*zsand(i,k)/100 + 0.00775*zclay(i,k)/100 + 0.0534*(100 - zsand(i,k) - zclay(i,k))/100)
+
+        !Use the physical model from Tian et al. (2016) [https://doi.org/10.1111/ejss.12366]
         if (OPT_SOILCOND == 1) then
             condsld_geo(i,k) = 7.7**(zsand(i,k)/100)*1.93**(zclay(i,k)/100)*2.74**((100 - zsand(i,k) - zclay(i,k))/100)
         endif
@@ -155,6 +167,15 @@ subroutine inisoili_svs(ni, trnch)
         enddo
         wunfrz_geo(i,k) =  wunfrz_geo(i,k)/5.
 
+!       Multiplicative factor applied to wsat to estimate the activation threshold for macropores
+!       mp_alpha is arbitrarily defined based on a sensitivity analysis
+!       mp_beta is a Weighted sand-to-clay ratio for the average tile over the GLSL domain
+        wmpfac_geo(i,k) = 0.0
+
+        if (MP_OPT == 1) then
+            wmpfac_geo(i,k) = (mp_alpha + (1 - mp_alpha)*(zclay(i,k) -zsand(i,k)/mp_beta)/100)
+        endif
+         
       enddo
    enddo
    ! "Map" GEO soil properties unto model soil layers
@@ -172,10 +193,12 @@ subroutine inisoili_svs(ni, trnch)
             zksat  (i,k)  = zksat  (i,k) + ksat_geo  (i,kk)  * weights( k , kk)
             zwfcint(i,k)  = zwfcint(i,k) + wfcint_geo(i,kk)  * weights( k , kk)
             zconddry  (i,k)  = zconddry  (i,k) + conddry_geo  (i,kk)  * weights( k , kk)
+            zcondminfac (i,k)  = zcondminfac (i,k) + condminfac_geo (i,kk)  * weights( k , kk)
             zcondsld  (i,k)  = zcondsld  (i,k) + condsld_geo  (i,kk)  * weights( k , kk)
             zquartz   (i,k)  = zquartz   (i,k) + quartz_geo   (i,kk)  * weights( k , kk)
             zrhosoil  (i,k)  = zrhosoil  (i,k) + rhosoil_geo  (i,kk)  * weights( k , kk)  
             zwunfrz   (i,k)  = zwunfrz   (i,k) + wunfrz_geo   (i,kk)  * weights( k , kk)
+            zwmpfac   (i,k)  = zwmpfac   (i,k) + wmpfac_geo   (i,kk)  * weights( k , kk)
             
          enddo
       enddo

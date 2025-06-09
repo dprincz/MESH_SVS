@@ -20,7 +20,7 @@ module svs_configs
   !
   integer, parameter :: indx_svs_ag  = 1 ! AGGREGATED VALUE 
   integer, parameter :: indx_svs_bg  = 2 ! BARE GROUND
-  integer, parameter :: indx_svs_vg  = 3 ! VEGETATION (NOT COVERED BY SNOW)  
+  integer, parameter :: indx_svs_vg  = 3 ! VEGETATION (NOT COVERED BY SNOW)
   integer, parameter :: indx_svs_sn  = 4 ! SNOW ON BARE GROUND & LOW VEG
   integer, parameter :: indx_svs_sv  = 5 ! SNOW ON HIGH VEG 
  

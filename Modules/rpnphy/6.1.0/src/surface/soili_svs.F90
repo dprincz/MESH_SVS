@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
       SUBROUTINE SOILI_SVS (WD, &
-           WF, SNM, SVM, RHOS, RHOSV, TSNO, TSNV, & 
+           WF, SNM, SVM, RHOS, RHOSV, & 
            VEGH, VEGL, &  
            CGSAT, WSAT, WWILT, BCOEF, & 
            CVH, CVL, ALVH, ALVL,  & 
@@ -25,7 +25,7 @@
            WTA, CG, PSNGRVL,  & 
            Z0H, ALGR, EMGR, PSNVH, PSNVHA,   &
            ALVA, LAIVA, CVPA, EVA, Z0HA, Z0MVG, RGLA, STOMRA ,&  
-           GAMVA, N, SOILHCAPZ, SOILCONDZ, CONDDRY, CONDSLD)
+           GAMVA, N, SOILHCAPZ, SOILCONDZ, CONDDRY, CONDMINFAC, CONDSLD)
          !
         use tdpack_const, only: PI
         use svs_configs
@@ -38,12 +38,12 @@
       REAL WD(N,NL_SVS),WF(N,NL_SVS)
 
       REAL SNM(N), RHOS(N)
-      REAL RHOSV(N), TSNO(N), TSNV(N), Z0MVH(N), VEGH(N), VEGL(N), SVM(N)
+      REAL RHOSV(N), Z0MVH(N), VEGH(N), VEGL(N), SVM(N)
       REAL CGSAT(N), WSAT(N,NL_SVS), WWILT(N,NL_SVS), BCOEF(N,NL_SVS)
       REAL Z0(N)
       REAL CG(N), WTA(N,svs_tilesp1)
       REAL PSNGRVL(N)
-      REAL Z0H(N), ALGR(N), CLAY(N,NL_SVS), SAND(N,NL_SVS)
+      REAL Z0H(N), ALGR(N), CLAY(N), SAND(N)
       REAL DECI(N), EVER(N), LAID(N)
       REAL EMGR(N), PSNVH(N), PSNVHA(N),  LAIVH(N)
       REAL ALVA(N), LAIVA(N), CVPA(N), EVA(N)
@@ -52,7 +52,7 @@
       REAL Z0HA(N), Z0MVG(N), RGLA(N), STOMRA(N), STOMRVH(N), STOMRVL(N)
       REAL GAMVL(N), GAMVH(N), GAMVA(N)
       REAL SOILHCAPZ(N,NL_SVS), SOILCONDZ(N,NL_SVS)
-      REAL CONDDRY(N,NL_SVS), CONDSLD(N,NL_SVS)
+      REAL CONDDRY(N,NL_SVS), CONDMINFAC(N,NL_SVS), CONDSLD(N,NL_SVS)
       
 !Author
 !          S. Belair et al. (January 2009)
@@ -75,8 +75,6 @@
 ! SVM      equivalent water content of the snow-under-vegetation reservoir
 ! RHOS     relative density of snow
 ! RHOSV    relative density of snow-under-vegetation
-! TSNO     Deep snowpack temperature
-! TSNV     Deep snopwack temperature under-vegetation
 ! VEGH     fraction of HIGH vegetation
 ! VEGL     fraction of LOW vegetation
 ! CGSAT    soil thermal coefficient at saturation
@@ -104,13 +102,14 @@
 ! GAMVH    stomatal resistance param. for HIGH vegetation
 ! GAMVL    stomatal resistance param. for LOW  vegetation
 ! Z0       momentum roughness length (no snow)
-! CLAY     percentage of clay in soil (surface layer for computing the albedo and layer per layer for computing the thermal conductivity)
-! SAND     percentage of sand in soil (surface layer for computing the albedo and layer per layer for computing the thermal conductivity)  
+! CLAY     percentage of clay of surface soil layer 
+! SAND     percentage of sand of surface soil layer   
 ! DECI     fraction of high vegetation that is deciduous
 ! EVER     fraction of high vegetation that is evergreen
 ! LAID     LAI of deciduous trees
 ! CONDSLD  Soilds thermal conductivity
 ! CONDDRY  Dry thermal conductivity
+! CONDMINFAC  Factor applied to the thermal conductivity of minerals (only when soilcond = 1)
 !
 !           - Output -
 ! WTA      Weights for SVS surface types as seen from SPACE
@@ -137,10 +136,9 @@ include "isbapar.cdk"
 
 !
       INTEGER I, K
-      INTEGER OPT_SOILCOND, OPT_SNOWCOND
+      INTEGER OPT_SOILCOND
 !
       REAL LAMI, CI, DAY, RHOI, RHOW, CW, LAMW
-      REAL C1, C2, C3, C4, C5, F, F1, F2    !parameters for the hansson2004 model (OPT_SOILCOND = 1)
 ! 
       REAL ADRYSAND, AWETSAND, ADRYCLAY, AWETCLAY
       REAL EDRYSAND, EWETSAND, EDRYCLAY, EWETCLAY
@@ -161,13 +159,9 @@ include "isbapar.cdk"
 !***********************************************************************
 !
 !
-      OPT_SOILCOND = 1 ! Option for the Calculation of soil thermal conductivity 
+      OPT_SOILCOND = 0 ! Option for the Calculation of soil thermal conductivity 
                    ! 0: use the model from Peters-Lidard et al. (1998) for frozen soil that involve the Kersten number (Johanssen, 1975)
                    ! 1: Use the model from Tian et al. (2016)
-!
-      OPT_SNOWCOND = 0 ! Option to compute the effective thermal conductivity
-                       ! 0: Use default option from Yen (1981) that depends on snow density
-                       ! 1: Updated parameterization from Fourteau et al. (2021) that is tempearture and snow density dependant
 !
 !                                    Define some constants for
 !                                    the ice
@@ -177,7 +171,7 @@ include "isbapar.cdk"
 !
       LAMI   = 2.22
       CI     = 2.106E3
-      RHOI   = 917  
+      RHOI   = 917.  
       DAY    = 86400.
 
       LAMW = 0.57 ! Thermal conductivity of water
@@ -234,36 +228,8 @@ include "isbapar.cdk"
       DO I=1,N
 
         ! Snow thermal conductitivy
-        IF(OPT_SNOWCOND==0) THEN 
-            LAMS(I) = LAMI * RHOS(I)**1.88
-            LAMSV(I) = LAMI * RHOSV(I)**1.88
-            
-        ELSE IF(OPT_SNOWCOND == 1) THEN !Model from Fourteau et al. (2021)
-            IF (TSNO(I) >= 273) THEN
-                LAMS(I) = 1.776*(RHOS(I)/RHOI)**2 + 0.147*(RHOS(I)/RHOI) + 0.0455
-            ELSE IF (TSNO(I) < 273 .AND. TSNO(I) >= 268) THEN
-                LAMS(I) = 1.883*(RHOS(I)/RHOI)**2 + 0.107*(RHOS(I)/RHOI) + 0.0386
-            ELSE IF (TSNO(I) < 268 .AND. TSNO(I) >= 263) THEN
-                LAMS(I) = 1.985*(RHOS(I)/RHOI)**2 + 0.073*(RHOS(I)/RHOI) + 0.0336
-            ELSE IF (TSNO(I) < 263 .AND. TSNO(I) >= 248) THEN
-                LAMS(I) = 2.172*(RHOS(I)/RHOI)**2 + 0.015*(RHOS(I)/RHOI) + 0.0252
-            ELSE IF (TSNO(I) < 248) THEN
-                LAMS(I) = 2.564*(RHOS(I)/RHOI)**2 - 0.059*(RHOS(I)/RHOI) + 0.0205
-            ENDIF
-            
-            IF (TSNV(I) >= 273) THEN
-                LAMSV(I) = 1.776*(RHOSV(I)/RHOI)**2 + 0.147*(RHOSV(I)/RHOI) + 0.0455
-            ELSE IF (TSNV(I) < 273 .AND. TSNV(I) >= 268) THEN
-                LAMSV(I) = 1.883*(RHOSV(I)/RHOI)**2 + 0.107*(RHOSV(I)/RHOI) + 0.0386
-            ELSE IF (TSNV(I) < 268 .AND. TSNV(I) >= 263) THEN
-                LAMSV(I) = 1.985*(RHOSV(I)/RHOI)**2 + 0.073*(RHOSV(I)/RHOI) + 0.0336
-            ELSE IF (TSNV(I) < 263 .AND. TSNV(I) >= 248) THEN
-                LAMSV(I) = 2.172*(RHOSV(I)/RHOI)**2 + 0.015*(RHOSV(I)/RHOI) + 0.0252
-            ELSE IF (TSNV(I) < 248) THEN
-                LAMSV(I) = 2.564*(RHOSV(I)/RHOI)**2 - 0.059*(RHOSV(I)/RHOI) + 0.0205
-            ENDIF
-        ENDIF
-
+        LAMS(I) = LAMI * RHOS(I)**1.88
+        LAMSV(I) = LAMI * RHOSV(I)**1.88
         ZCS(I) = 2.0 * SQRT( PI/( LAMS(I) * 1000* RHOS(I) *CI*DAY) )
         ZCSV(I) = 2.0 * SQRT( PI/(LAMSV(I)* 1000*RHOSV(I) *CI*DAY) )
 !
@@ -500,9 +466,10 @@ include "isbapar.cdk"
 !                       database as is here... 
 !
       DO I=1,N
-!                      A few constraints 
-         IF((CLAY(I,1)+SAND(I,1)).gt.0.0) THEN         
-            A(I)= SAND(I,1) / ( CLAY(I,1) + SAND(I,1) ) 
+!        A few constraints
+!	     Take the texture of the surface soil layer 
+         IF((CLAY(I)+SAND(I)).gt.0.0) THEN         
+            A(I)= SAND(I) / ( CLAY(I) + SAND(I) ) 
          ELSE         
             A(I) = 0.0           
          ENDIF
@@ -618,22 +585,22 @@ include "isbapar.cdk"
                       ENDIF
                   ENDIF
 
-                  k_min = 0.666666*(1+(CONDSLD(I,K)/LAM_ZERO-1)*(0.182*SAND(I,K)/100 + 0.00775*CLAY(I,K)/100 + 0.0534*(100 - SAND(I,K) - CLAY(I,K))/100))**-1 + &
-                          0.333333*(1+(CONDSLD(I,K)/LAM_ZERO-1)*(1-2*(0.182*SAND(I,K)/100 + 0.00775*CLAY(I,K)/100 + 0.0534*(100 - SAND(I,K) - CLAY(I,K))/100)))**-1
+                  k_min = (2/3)*(1+(CONDSLD(I,K)/LAM_ZERO-1)*CONDMINFAC(I,K))**(-1) + &
+                          (1/3)*(1+(CONDSLD(I,K)/LAM_ZERO-1)*(1-2*CONDMINFAC(I,K)))**(-1)
 
-                  k_ice = 0.666666**(1+(LAMI/LAM_ZERO-1)*0.333*(1-WF(I,K)/WSAT(I,K)))**-1 + 0.333333*(1+(LAMI/LAM_ZERO-1)*(1-2*0.333*(1-WF(I,K)/WSAT(I,K))))**-1
+                  k_ice = (2/3)*(1+(LAMI/LAM_ZERO-1)*0.333*(1-WF(I,K)/WSAT(I,K)))**(-1) + (1/3)*(1+(LAMI/LAM_ZERO-1)*(1-2*0.333*(1-WF(I,K)/WSAT(I,K))))**(-1)
                   
-                  k_air = 0.666666**(1+(0.025/LAM_ZERO-1)*0.333*(1-(WSAT(I,K)-WD(I,K)-WF(I,K))/WSAT(I,K)))**-1 + &
-                          0.333333*(1+(0.025/LAM_ZERO-1)*(1-2*0.333*(1-(WSAT(I,K)-WD(I,K)-WF(I,K))/WSAT(I,K))))**-1
+                  k_air = (2/3)*(1+(0.025/LAM_ZERO-1)*0.333*(1-(WSAT(I,K)-WD(I,K)-WF(I,K))/WSAT(I,K)))**(-1) + &
+                          (1/3)*(1+(0.025/LAM_ZERO-1)*(1-2*0.333*(1-(WSAT(I,K)-WD(I,K)-WF(I,K))/WSAT(I,K))))**(-1)
 
                   SOILCONDZ(I,K) = (WD(I,K)*LAMW + k_ice*WF(I,K)*LAMI + k_air*(WSAT(I,K) - WD(I,K) - WF(I,K))*0.025 + k_min*(1 - WSAT(I,K))*CONDSLD(I,K)) / &
                                   (WD(I,K) +k_ice*WF(I,K)+k_air*(WSAT(I,K)-WD(I,K)-WF(I,K))+k_min*(1-WSAT(I,K)))
 
               ENDIF
 
-                 !Heat capacity (J m-3 K-1)
-                 SOILHCAPZ(I,K) = (1. - WSAT(I,K)) * 2700. * 733. + WD(I,K) * CW * RHOW &
-                                 + WF(I,K) * CI * RHOI
+              !Heat capacity (J m-3 K-1)
+              SOILHCAPZ(I,K) = (1. - WSAT(I,K)) * 2700. * 733. + WD(I,K) * CW * RHOW &
+                         + WF(I,K) * CI * RHOI
           
           END DO
 
