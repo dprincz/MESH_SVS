@@ -529,7 +529,6 @@ subroutine svs(BUS, BUSSIZ, PTSURF, PTSURFSIZ, DT, KOUNT, TRNCH, N, M, NK)
            bus(x(vegh    ,1,1)), bus(x(psngrvl ,1,1)),&
            bus(x(psnvha  ,1,1)), bus(x(acroot  ,1,1)),&
            wrmax, bus(x(wmpfac,1,1)), bus(x(wsat    ,1,1)),&
-           bus(x(wunfrz  ,1,1)),&
            bus(x(ksat    ,1,1)), bus(x(psisat  ,1,1)),&
            bus(x(bcoef   ,1,1)), bus(x(fbcof   ,1,1)),&
            bus(x(wfcint  ,1,1)), bus(x(grkef   ,1,1)),&

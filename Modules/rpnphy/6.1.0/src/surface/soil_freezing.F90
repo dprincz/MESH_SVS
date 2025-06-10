@@ -128,7 +128,7 @@
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !
 
-      OPT_SNOW = 3 ! Option to compute the heat flux between the snowpack and the soil 
+      OPT_SNOW = 2 ! Option to compute the heat flux between the snowpack and the soil 
                    ! 0: use the deep snow temperature and half the snow depth
                    ! 1: use the deep snow temperature and the full snow depth
                    ! 2: use the deep snow temp. and the max of half the snow depth
@@ -203,7 +203,7 @@
       DO K =1, NL_SVS
         IF(ZLAYER(K) .LE. HSURF) THEN
            WSURF(K) = 1.0
-        ELSE IF( ZLAYER(K)> HSURF ) THEN
+        ELSE IF(ZLAYER(K)> HSURF ) THEN
            IF(K==1) THEN
               WSURF(K) = HSURF/ZLAYER(K)
            ELSE IF(ZLAYER(K-1)<=HSURF) THEN
