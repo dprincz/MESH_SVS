@@ -536,15 +536,13 @@ module sfc_options
    ! Option for the metamorphism scheme for Crocus
    !    HSNOWMETAMO=B21 Correction of C13 to correctly handle the conversion from 
    !                     dendricity/sphericity/grain size to optical diameter/sphericity (Default in SVS2)
-   !    HSNOWMETAMO=C13 Carmagnola et al 2014 
    !    HSNOWMETAMO=T07 Taillandier et al 2007
    !    HSNOWMETAMO=F06 Flanner et al 2006
    !    HSNOWMETAMO=S-F Schlef et al 2014
    !    HSNOWMETAMO=S-B Schlef et al 2014
    character(len=16) :: hsnowmetamo = 'B21'
    namelist /surface_cfgs/ hsnowmetamo
-   character(len=*), parameter :: HSNOWMETAMO_OPT(6) = (/ &
-        'C13',  &
+   character(len=*), parameter :: HSNOWMETAMO_OPT(5) = (/ &
         'T07',  &  
         'F06',  &  
         'B21',  &
