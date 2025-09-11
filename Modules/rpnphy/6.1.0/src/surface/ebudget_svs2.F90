@@ -1175,14 +1175,14 @@
 !
 !          Calculate effective land sfc specific humdity
 !
-           ZQS(I) =     WTA(I,indx_svs2_bg)*    HRSURF(I)  * ZQSATGRT(I)/RESAGR(I) &
+           ZQS(I) =   RESAEF(I) *  ( WTA(I,indx_svs2_bg)*    HRSURF(I)  * ZQSATGRT(I)/RESAGR(I) &
                       + WTA(I,indx_svs2_sn)                * ZQSATSNO(I)/RESASA(I) &
                       + WTA(I,indx_svs2_sv)                * ZQSATSNV(I)/RESASV(I) &
                       + WTA(I,indx_svs2_gv)*   HRSURFGV(I) * ZQSATGRVT(I)/RESAGRV(I) &
                       +(WTA(I,indx_svs2_vl)*     HV_VL(I)  * ZQSATVGLT(I)          &
                       + WTA(I,indx_svs2_vl)*(1.-HV_VL(I))  * HU(I))/RESA_VL(I)     &
                       +(WTA(I,indx_svs2_vh)*     HV_VH(I)  * ZQSATVGHT(I)         &
-                      + WTA(I,indx_svs2_vh)*(1.-HV_VH(I))*HU(I))/RESA_VH(I)
+                      + WTA(I,indx_svs2_vh)*(1.-HV_VH(I))*HU(I))/RESA_VH(I))
 
 !
 !          Calculate effective land sfc temperature
