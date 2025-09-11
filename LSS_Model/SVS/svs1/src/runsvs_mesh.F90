@@ -68,7 +68,10 @@ module runsvs_mesh
     character(len = *), parameter, public :: VN_SVS_KHYD = 'KHYD'
     character(len = *), parameter, public :: VN_SVS_SAND = 'SAND'
     character(len = *), parameter, public :: VN_SVS_CLAY = 'CLAY'
-    character(len = *), parameter, public :: VN_SVS_SOC = 'SOC'
+    character(len = *), parameter, public :: VN_SVS_SILT = 'SILT'
+    character(len = *), parameter, public :: VN_SVS_GRAVEL = 'GRAVEL'
+    character(len = *), parameter, public :: VN_SVS_BULKSOIL = 'BULKSOIL'
+    character(len = *), parameter, public :: VN_SVS_OC = 'OC'
     character(len = *), parameter, public :: VN_SVS_WSOIL = 'WSOIL'
     character(len = *), parameter, public :: VN_SVS_ISOIL = 'ISOIL'
     character(len = *), parameter, public :: VN_SVS_LATFL = 'LATFL'
@@ -140,6 +143,7 @@ module runsvs_mesh
     character(len = *), parameter, public :: VN_SVS_LSOIL_FREEZING_SVS1 = 'LSOIL_FREEZING_SVS1' ! For svs1 only
     character(len = *), parameter, public :: VN_SVS_LWATER_PONDING_SVS = 'LWATER_PONDING_SVS' ! For svs1 and svs2
     character(len = *), parameter, public :: VN_SVS_LUNIQUE_PROFILE_SVS2 = 'LUNIQUE_PROFILE_SVS2' ! For svs2 only
+    character(len = *), parameter, public :: VN_SVS_READ_OC = 'READ_OC' ! For svs2 only
     character(len = *), parameter, public :: VN_SVS_LBCHEAT_SVS2 = 'LBCHEAT_SVS2'! For svs2 only
     character(len = *), parameter, public :: VN_SVS_LSNOW_INTERCEPTION_SVS2 = 'LSNOW_INTERCEPTION_SVS2' ! For svs2 only
     character(len = *), parameter, public :: VN_SVS_CANO_REF_FORCING = 'CANO_REF_FORCING' ! For svs2 only
@@ -156,7 +160,10 @@ module runsvs_mesh
     !> SVS variables names for I/O (modifiers/special conditions).
     character(len = *), parameter, public :: VN_SVS_SAND_N = 'SAND_N'
     character(len = *), parameter, public :: VN_SVS_CLAY_N = 'CLAY_N'
-    character(len = *), parameter, public :: VN_SVS_SOC_N = 'SOC_N'
+    character(len = *), parameter, public :: VN_SVS_SILT_N = 'SILT_N'
+    character(len = *), parameter, public :: VN_SVS_GRAVEL_N = 'GRAVEL_N'
+    character(len = *), parameter, public :: VN_SVS_BULKSOIL_N = 'BULKSOIL_N'
+    character(len = *), parameter, public :: VN_SVS_OC_N = 'OC_N'
     character(len = *), parameter, public :: VN_SVS_WSOIL_N = 'WSOIL_N'
     character(len = *), parameter, public :: VN_SVS_ISOIL_N = 'ISOIL_N'
     character(len = *), parameter, public :: VN_SVS_TGROUND_N = 'TGROUND_N'
@@ -203,7 +210,10 @@ module runsvs_mesh
         integer :: khyd = 6
         real, dimension(:, :), allocatable :: sand
         real, dimension(:, :), allocatable :: clay
-        real, dimension(:, :), allocatable :: soc
+        real, dimension(:, :), allocatable :: silt
+        real, dimension(:, :), allocatable :: gravel
+        real, dimension(:, :), allocatable :: bulksoil
+        real, dimension(:, :), allocatable :: oc
         real, dimension(:, :), allocatable :: wsoil
         real, dimension(:, :), allocatable :: isoil
         real, dimension(:, :), allocatable :: tpsoil ! For svs2 and svs1 (with soil freezing)
@@ -271,6 +281,7 @@ module runsvs_mesh
         logical :: lsoil_freezing_svs1 = .false.
         logical :: lwater_ponding_svs = .false.
         logical :: lunique_profile_svs2 = .true.
+        logical :: read_oc = .false.
         character(len = DEFAULT_FIELD_LENGTH) :: lbcheat_svs2 = 'TPERM'
         logical :: lsnow_interception_svs2 = .false.
         character(len = DEFAULT_FIELD_LENGTH) :: cano_ref_forcing = 'FOR'
@@ -546,7 +557,10 @@ module runsvs_mesh
             do i = 1, nl_svs
                 if (allocated(svs_mesh%vs%sand)) svs_bus(a2(sand, i - 1):z2(sand, i - 1)) = svs_mesh%vs%sand(:, i)
                 if (allocated(svs_mesh%vs%clay)) svs_bus(a2(clay, i - 1):z2(clay, i - 1)) = svs_mesh%vs%clay(:, i)
-                if (allocated(svs_mesh%vs%soc)) svs_bus(a2(soc, i - 1):z2(soc, i - 1)) = svs_mesh%vs%soc(:, i)
+                if (allocated(svs_mesh%vs%silt)) svs_bus(a2(silt, i - 1):z2(silt, i - 1)) = svs_mesh%vs%silt(:, i)
+                if (allocated(svs_mesh%vs%gravel)) svs_bus(a2(gravel, i - 1):z2(gravel, i - 1)) = svs_mesh%vs%gravel(:, i)
+                if (allocated(svs_mesh%vs%bulksoil)) svs_bus(a2(bulksoil, i - 1):z2(bulksoil, i - 1)) = svs_mesh%vs%bulksoil(:, i)
+                if (allocated(svs_mesh%vs%oc)) svs_bus(a2(oc, i - 1):z2(oc, i - 1)) = svs_mesh%vs%oc(:, i)
             end do
             if (svs_mesh%vs%schmsol=='SVS') then
                 call inisoili_svs(ni, trnch)
@@ -559,6 +573,10 @@ module runsvs_mesh
             do i = 1, nl_stp
                 if (allocated(svs_mesh%vs%sand)) svs_bus(a2(sanden, i - 1):z2(sanden, i - 1)) = svs_mesh%vs%sand(:, i)
                 if (allocated(svs_mesh%vs%clay)) svs_bus(a2(clayen, i - 1):z2(clayen, i - 1)) = svs_mesh%vs%clay(:, i)
+                if (allocated(svs_mesh%vs%silt)) svs_bus(a2(silten, i - 1):z2(silten, i - 1)) = svs_mesh%vs%silt(:, i)
+                if (allocated(svs_mesh%vs%gravel)) svs_bus(a2(gravelen, i - 1):z2(gravelen, i - 1)) = svs_mesh%vs%gravel(:, i)
+                if (allocated(svs_mesh%vs%bulksoil)) svs_bus(a2(bulksoilen, i - 1):z2(bulksoilen, i - 1)) = svs_mesh%vs%bulksoil(:, i)
+                if (allocated(svs_mesh%vs%oc)) svs_bus(a2(ocen, i - 1):z2(ocen, i - 1)) = svs_mesh%vs%oc(:, i)
             end do
         end if
         do i = 1, nl_svs
@@ -908,6 +926,11 @@ module runsvs_mesh
                 lbcheat_svs2 = svs_mesh%vs%lbcheat_svs2
         endif
 
+        ! Activate or not soil organic content in SVS2
+        if(svs_mesh%vs%schmsol=='SVS2') then
+                read_oc = svs_mesh%vs%read_oc
+        endif
+
         ! Activate or not snow interception in SVS2
         if(svs_mesh%vs%schmsol=='SVS2') then
                 lsnow_interception_svs2 = svs_mesh%vs%lsnow_interception_svs2
@@ -1113,8 +1136,14 @@ module runsvs_mesh
             vl(vd%sand%i)%mul = nl_stp
             vd%clay%mul = nl_stp
             vl(vd%clay%i)%mul = nl_stp
-            vd%soc%mul = nl_stp
-            vl(vd%soc%i)%mul = nl_stp
+            vd%silt%mul = nl_stp
+            vl(vd%silt%i)%mul = nl_stp
+            vd%gravel%mul = nl_stp
+            vl(vd%gravel%i)%mul = nl_stp
+            vd%bulksoil%mul = nl_stp
+            vl(vd%bulksoil%i)%mul = nl_stp
+            vd%oc%mul = nl_stp
+            vl(vd%oc%i)%mul = nl_stp
         else
 
             !> Overwrite the default input level set by the unknown 'soiltext' type.
@@ -1123,7 +1152,10 @@ module runsvs_mesh
             !> Add the 'sanden' and 'clayen' variables as inputs.
             call runsvs_mesh_append_phyentvar('sanden')
             call runsvs_mesh_append_phyentvar('clayen')
-
+            call runsvs_mesh_append_phyentvar('silten')
+            call runsvs_mesh_append_phyentvar('gravelen')
+            call runsvs_mesh_append_phyentvar('bulksoilen')
+            call runsvs_mesh_append_phyentvar('ocen')
             !> Overwrite active soil layers for MESH.
             shd%lc%IGND = nl_svs
         end if
@@ -1260,9 +1292,9 @@ print*,vl(i)%n,vl(i)%niveaux,vl(i)%mul,vl(i)%mosaik
             end do
             write(line, "('PERMEABLE LAYERS: ', i3)") khyd
             call print_message('SOIL TEXTURE:')
-            call print_message('             % SAND    % CLAY    % SOC')
+            call print_message('             % SAND    % CLAY  % SILT % GRAVEL BULKSOIL % OC')
             do i = 1, nl_svs ! model layers
-                write(line, "(' LAYER ', i3, ': ', 999(f8.3, 3x))") i, svs_bus(a2(sand, i - 1)), svs_bus(a2(clay, i - 1)), svs_bus(a2(soc, i - 1))
+                write(line, "(' LAYER ', i3, ': ', 999(f8.3, 3x))") i, svs_bus(a2(sand, i - 1)), svs_bus(a2(clay, i - 1)), svs_bus(a2(silt, i - 1)),svs_bus(a2(gravel, i - 1)),svs_bus(a2(bulksoil, i - 1)),svs_bus(a2(oc, i - 1))
                 call print_message(line)
             end do
             call print_message('SOIL MOISTURE:')

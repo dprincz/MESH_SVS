@@ -42,6 +42,7 @@ module svs_configs
   !  1:   "GSDE"      --  8 layers of soil texture from CHINESE DATASET !!!
   !  2:   "SLC"       --  5 layers of soil texture:  SOIL LANDSCAPE of CANADA
   !  3:   "SOILGRIDS" --  7  layers of soil texture:  ISRIC ? World Soil Information
+  !  4:   "SOILGRIDSV2" --  6  layers of soil texture:  ISRIC ? World Soil Information
   ! ENTRY  bus number of levels for clay & sand variables
   integer,  save :: nl_ste
   ! PERMANENT PHYSICS bus number of levels for clay & sand variables
@@ -61,8 +62,12 @@ module svs_configs
   ! SOILGRIDS NUMBER OF LAYERS 
   integer,  parameter :: nl_soilgrids = 7 
   ! SOILGRIDS SOIL DEPTH in METERS... 
-  real, parameter , dimension(nl_soilgrids):: dl_soilgrids =  (/ 0.025, 0.1, 0.225, 0.45, 0.8, 1.5, 2.0 /) 
+  real, parameter , dimension(nl_soilgrids):: dl_soilgrids =  (/ 0.05, 0.15, 0.3, 0.6, 1.0, 2.0, 2.0 /)
 
+  ! SOILGRIDS NUMBER OF LAYERS 
+  integer,  parameter :: nl_soilgridsv2 = 6
+  ! SLC SOIL DEPTH in METERS... ( 0-5cm, 15-30cm, 30-60cm, 60-100cm, 100-200cm ) 
+  real, parameter , dimension(nl_soilgridsv2):: dl_soilgridsv2 =  (/ 0.05, 0.15, 0.3, 0.6, 1.0, 2.0/)
 
   !  WEIGHTS TO MAP soil parameters calculated on SOIL TEXTURE LAYERS  layers unto MODEL SOIL LAYERS 
   real, allocatable, save :: weights(:,:)       !(max_nl_svs,nl_soil_texture)
@@ -187,6 +192,14 @@ contains
        nl_stp = nl_soilgrids
        call weights_soil_texture()
 
+    else if ( soiltext == "SOILGRIDSV2" ) then
+
+       ! ENTRY  bus number of levels for clay & sand variables
+       nl_ste = nl_soilgridsv2
+       ! PERMANENT PHYSICS bus number of levels for clay & sand variables
+       nl_stp = nl_soilgridsv2
+       call weights_soil_texture()
+
     endif
     ! Calculate SVS soil layer thickness from layer Depths specified by sfc nml
     call layer_thickness()
@@ -243,6 +256,15 @@ contains
        ! i.e, deepest soil texture measured extends to the bottom of last SVS layer
        d_soil_texture(nl_stp+1)=max( dl_svs(nl_svs) , dl_soilgrids(nl_stp) )    
 
+    else if (soiltext == "SOILGRIDSV2") then
+     
+       do k=2,nl_stp
+          d_soil_texture(k)=dl_soilgridsv2(k-1)
+       enddo
+       ! last depth of soil texture database set to max depth of SVS 
+       ! i.e, deepest soil texture measured extends to the bottom of last SVS layer
+       d_soil_texture(nl_stp+1)=max( dl_svs(nl_svs) , dl_soilgridsv2(nl_stp) )    
+
 
     endif
     
@@ -268,6 +290,8 @@ contains
           write(unout, *) ' ****** SLC SOIL TEXTURE ******* '
        else if (soiltext == "SOILGRIDS" ) then
           write(unout, *) ' ****** SOILGRIDS SOIL TEXTURE ******* '
+       else if ( soiltext == "SOILGRIDSV2") then
+          write(unout, *) ' ****** SOILGRIDSV2 SOIL TEXTURE ******* '
        endif
           
        write(unout, *) ' ****** SOIL MAPPING WEIGHTS [METERS] ******* '
@@ -286,6 +310,10 @@ contains
           else if (soiltext == "SOILGRIDS" ) then
              do kk = 1, nl_stp ! database layers
                 write(unout, *) 'for SOILGRIDS layer kk=', kk,' depth=', dl_soilgrids(kk),' weight=', weights(k,kk)
+             enddo
+          else if (soiltext == "SOILGRIDSV2") then
+             do kk = 1, nl_stp ! database layers
+                write(unout, *) 'for SOILGRIDS2 layer kk=', kk,' depth=', dl_soilgridsv2(kk),' weight=', weights(k,kk)
              enddo
           endif
        enddo

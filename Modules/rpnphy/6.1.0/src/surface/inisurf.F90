@@ -66,7 +66,8 @@ subroutine inisurf4(kount, ni, nk, trnch)
         zvgh_dens,zvgh_densen,zhveglpol,zhveglpolen,              &
         zz0en, zz0mland, zz0mlanden, zz0mvh, zz0mvhen, zz0veg, zz0tveg
    real, pointer, dimension(:,:) :: &
-        zalvis, zclay, zclayen, zsand, zsanden, zsnodp, &
+        zalvis, zclay, zclayen, zsand, zsanden, zsilt, zsilten, zsnodp, &
+        zgravel, zgravelen, zbulksoil, zbulksoilen, zoc, zocen, &
         ztglacier, ztmice, ztmoins, ztsoil, zvegf, zz0, zz0t
 
 #define MKPTR1D(NAME1,NAME2) nullify(NAME1); if (vd%NAME2%i > 0 .and. associated(busptr(vd%NAME2%i)%ptr)) NAME1(1:ni) => busptr(vd%NAME2%i)%ptr(:,trnch)
@@ -122,10 +123,18 @@ subroutine inisurf4(kount, ni, nk, trnch)
    MKPTR1D(zz0tveg,z0tveg)
 
    MKPTR2D(zalvis,alvis)
+   MKPTR2D(zbulksoil,bulksoil)
+   MKPTR2D(zbulksoilen,bulksoilen)
    MKPTR2D(zclay,clay)
    MKPTR2D(zclayen,clayen)
+   MKPTR2D(zgravel,gravel)
+   MKPTR2D(zgravelen,gravelen)
+   MKPTR2D(zoc,oc)
+   MKPTR2D(zocen,ocen)
    MKPTR2D(zsand,sand)
    MKPTR2D(zsanden,sanden)
+   MKPTR2D(zsilt,silt)
+   MKPTR2D(zsilten,silten)
    MKPTR2D(zsnodp,snodp)
    MKPTR2D(ztglacier,tglacier)
    MKPTR2D(ztmice,tmice)
@@ -489,7 +498,7 @@ subroutine inisurf4(kount, ni, nk, trnch)
 !
 !VDIR NODEP
       soil_data: if ( soiltext == "GSDE" .or. soiltext == "SLC" &
-           .or. soiltext == "SOILGRIDS" ) then 
+           .or. soiltext == "SOILGRIDS" .or. soiltext == "SOILGRIDSV2") then 
 
          if (any('sanden' == phyinread_list_s(1:phyinread_n))) then
             do k=1,nl_stp
@@ -683,7 +692,7 @@ subroutine inisurf4(kount, ni, nk, trnch)
 !
 !VDIR NODEP
       soil_data_svs2: if ( soiltext == "GSDE" .or. soiltext == "SLC" &
-           .or. soiltext == "SOILGRIDS" ) then 
+           .or. soiltext == "SOILGRIDS" .or. soiltext == "SOILGRIDSV2") then 
 
          if (any('sanden' == phyinread_list_s(1:phyinread_n))) then
             do k=1,nl_stp
@@ -702,6 +711,52 @@ subroutine inisurf4(kount, ni, nk, trnch)
             end do
          endif
 
+         if (read_oc) then
+            if (any('gravelen' == phyinread_list_s(1:phyinread_n))) then
+               do k=1,nl_stp
+                  do i=1,ni
+                     zgravel(i,k) = zgravelen(i,k)
+                  end do
+               end do
+            endif
+
+            if (any('bulksoilen' == phyinread_list_s(1:phyinread_n))) then
+               do k=1,nl_stp
+                  do i=1,ni
+                     zbulksoil(i,k) = zbulksoilen(i,k)
+                  end do
+               end do
+            endif
+
+            if (any('ocen' == phyinread_list_s(1:phyinread_n))) then
+               do k=1,nl_stp
+                  do i=1,ni
+                     zoc(i,k) = zocen(i,k)
+                  end do
+               end do
+            endif
+
+            if (any('silten' == phyinread_list_s(1:phyinread_n))) then
+               do k=1,nl_stp
+                  do i=1,ni
+                     zsilt(i,k) = zsilten(i,k)
+                  end do
+               end do
+            endif
+
+            do k=1,nl_stp
+               do i=1,ni
+                  if (zmg(i).lt.critmask) then
+                     ! OVER WATER...
+                     zgravel  (i,k)    = 0.0
+                     zbulksoil  (i,k)    = 0.0
+                     zoc  (i,k)    = 0.0
+                     zsilt  (i,k)    = 0.0
+                  endif           
+               enddo
+            enddo
+         endif
+
          clay_n_sand_svs2:if (any('clayen' == phyinread_list_s(1:phyinread_n)) .or. &
               any('sanden' == phyinread_list_s(1:phyinread_n))) then
 
@@ -711,26 +766,58 @@ subroutine inisurf4(kount, ni, nk, trnch)
                      ! OVER WATER...
                      zsand  (i,k)    = 0.0
                      zclay  (i,k)    = 0.0
+                     if (read_oc) then
+                        zsilt  (i,k)    = 0.0
+                        zoc  (i,k)    = 0.0
+                        zbulksoil  (i,k)    = 0.0
+                     endif
                   else
                      ! OVER LAND
                      
-                     if (zsand(i,k)+zclay(i,k).lt.critexture) then
-                        !                If no sand and clay component
-                        !                attribute to these points characteristics
-                        !                of typical loamy soils
-                        zsand(i,k) = 35.
-                        zclay(i,k) = 35.
-                     else 
-                        !                 Minimum of 1% of sand and clay 
-                        zsand(i,k) =  max( zsand(i,k) , 1.0) 
+                     if (.not. read_oc) then
+                        if (zsand(i,k)+zclay(i,k).lt.critexture) then
+                           !                If no sand and clay component
+                           !                attribute to these points characteristics
+                           !                of typical loamy soils
+                           zsand(i,k) = 35.
+                           zclay(i,k) = 35.
+                        else 
+                           !                 Minimum of 1% of sand and clay 
+                           zsand(i,k) =  max( zsand(i,k) , 1.0)       
+                           zclay(i,k) =  max( zclay(i,k) , 1.0)
                         
-                        zclay(i,k) =  max( zclay(i,k) , 1.0)
-                        
-                        if ( zsand(i,k)+zclay(i,k).gt.100 ) then
-                           ! reduce sand & clay  percentage proportionally 
-                           tempsum= zsand(i,k) + zclay(i,k)
-                           zsand(i,k) = zsand(i,k)/tempsum * 100.
-                           zclay(i,k) = zclay(i,k)/tempsum * 100.
+                           if ( zsand(i,k)+zclay(i,k).gt.100 ) then
+                              ! reduce sand & clay  percentage proportionally 
+                              tempsum= zsand(i,k) + zclay(i,k)
+                              zsand(i,k) = zsand(i,k)/tempsum * 100.
+                              zclay(i,k) = zclay(i,k)/tempsum * 100.
+                           endif
+                        endif
+
+                     else
+
+                        if (zsand(i,k)+zclay(i,k)+zsilt(i,k).lt.critexture) then
+                           !                If no sand and clay component
+                           !                attribute to these points characteristics
+                           !                of typical clay loamy (fine loamy) soils with no OC
+                           zsand(i,k) = 35.
+                           zclay(i,k) = 35.
+                           zsilt(i,k) = 30.
+                           zoc(i,k) = 0.
+                        else 
+
+                           !                 Minimum of 1% of sand, clay, and silt
+                           zsand(i,k) =  max( zsand(i,k) , 1.0) 
+                           zclay(i,k) =  max( zclay(i,k) , 1.0)
+                           zsilt(i,k) =  max( zsilt(i,k) , 1.0)
+                           
+                           if ( zsand(i,k)+zclay(i,k)+zsilt(i,k) .gt. 100 ) then
+                              ! reduce sand, silt, & clay  percentage proportionally 
+                              tempsum = zsand(i,k) + zclay(i,k) + zsilt(i,k)
+                              zsand(i,k) = zsand(i,k)/tempsum * 100.
+                              zclay(i,k) = zclay(i,k)/tempsum * 100.
+                              zsilt(i,k) = zsilt(i,k)/tempsum * 100.
+                           endif
                         endif
                      endif
                   endif watmask2_svs2              

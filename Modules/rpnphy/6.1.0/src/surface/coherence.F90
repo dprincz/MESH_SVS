@@ -47,11 +47,13 @@ subroutine coherence3(ni, trnch)
    real, pointer, dimension(:) :: zalveg,  zcveg,  zgamveg,  zglacier,  zglsea,  zicedp,  zlai,  zmg,  zrgl,  zrootdp,  zsnoal, zsnoden, zsnoma,  zsnoro,  zstomr,  zvegfrac,  zwsnow,  zwveg
 !!$      real, pointer, dimension(:) :: zsdepth
 
-   real, pointer, dimension(:,:) :: zclay, zisoil, zsand, zsoc, zsnodp, ztglacier, ztsoil, zwsoil,ztpsoil
+   real, pointer, dimension(:,:) :: zclay, zisoil, zsand, zsnodp, ztglacier, ztsoil, zwsoil,ztpsoil
    ! SVS
    real, pointer, dimension(:) :: zsnodpl, zsnval, zsnvden, zsnvdp, zsnvma, zsnvro, zvegh, zvegl, zwsnv
    ! SVS 2
    real, pointer, dimension(:) :: zwveg_vl,zwveg_vh
+   real, pointer, dimension(:,:) :: zgravel, zbulksoil, zoc, zsilt
+
 
 #define MKPTR1D(NAME1,NAME2) nullify(NAME1); if (vd%NAME2%i > 0 .and. associated(busptr(vd%NAME2%i)%ptr)) NAME1(1:ni) => busptr(vd%NAME2%i)%ptr(:,trnch)
 #define MKPTR2D(NAME1,NAME2) nullify(NAME1); if (vd%NAME2%i > 0 .and. associated(busptr(vd%NAME2%i)%ptr)) NAME1(1:ni,1:vd%NAME2%mul*vd%NAME2%niveaux) => busptr(vd%NAME2%i)%ptr(:,trnch)
@@ -85,10 +87,13 @@ subroutine coherence3(ni, trnch)
    MKPTR1D(zwsnv,    wsnv)
    !MKPTR1D(zwveg,    wveg)
 
+   MKPTR2D(zbulksoil , bulksoil)
    MKPTR2D(zclay,    clay)
+   MKPTR2D(zgravel , gravel)
    MKPTR2D(zisoil,   isoil)
+   MKPTR2D(zoc , oc)
    MKPTR2D(zsand,    sand)
-   MKPTR2D(zsoc,    soc)
+   MKPTR2D(zsilt,    silt)
    MKPTR2D(zsnodp,   snodp)
    MKPTR2D(ztglacier,tglacier)
    MKPTR2D(ztsoil,   tsoil)   
@@ -139,7 +144,6 @@ subroutine coherence3(ni, trnch)
                zvegfrac (i)      = 0.0
                zsand    (i,1)    = 0.0
                zclay    (i,1)    = 0.0
-               zsoc    (i,1)    = 0.0
 
             end if
          end do
@@ -161,7 +165,6 @@ subroutine coherence3(ni, trnch)
                if (zsand(i,1)+zclay(i,1).lt.critexture) then
                   zsand(i,1) = 35.
                   zclay(i,1) = 35.
-                  zsoc(i,1) = 0.
                end if
 
                zwsoil(i,1) = max(zwsoil(i,1),1.e-7)
@@ -169,8 +172,6 @@ subroutine coherence3(ni, trnch)
 
                zsand(i,1) = max(1.,zsand(i,1))
                zclay(i,1) = max(1.,zclay(i,1))
-               zsoc(i,1) = max(1.,zsoc(i,1))
-
 
                zalveg   (i) = max( zalveg   (i) , 0.12 )
                zrootdp  (i) = max( zrootdp  (i) , 0.5  )
@@ -233,6 +234,14 @@ subroutine coherence3(ni, trnch)
                zsnvdp(i)  = 0.0
                zsnvma(i)  = 0.0
                zwsnv(i)   = 0.0
+               if (read_oc) then
+                   do k=1,nl_stp
+                      zgravel(i,k) = 0.0
+                      zsilt(i,k) = 0.0
+                      zbulksoil(i,k) = 0.0
+                      zoc(i,k) = 0.0
+                   enddo
+               endif
             endif
          enddo      
       endif IF_SVS_V2
@@ -329,7 +338,6 @@ subroutine coherence3(ni, trnch)
                zvegfrac (i)      = 0.0
                zsand    (i,1)    = 0.0
                zclay    (i,1)    = 0.0
-               zsoc    (i,1)    = 0.0
 
             end if
          end do
@@ -388,6 +396,14 @@ subroutine coherence3(ni, trnch)
                zsnvdp(i)  = 0.0
                zsnvma(i)  = 0.0
                zwsnv(i)   = 0.0
+               if (read_oc) then
+                   do k=1,nl_stp
+                      zgravel(i,k) = 0.0
+                      zsilt(i,k) = 0.0
+                      zbulksoil(i,k) = 0.0
+                      zoc(i,k) = 0.0
+                   enddo
+               endif
             end if
          end do
 

@@ -194,7 +194,11 @@ module sfc_options
    logical           :: read_z0vh     = .false.
    namelist /surface_cfgs/ read_z0vh
 
-   !# read-in high vegetation density for SVS if .true.
+   !# (SVS2) read-in organic content for SVS2 if .true.
+   logical           :: read_oc     = .false.
+   namelist /surface_cfgs/ read_oc
+   
+   !# read-in high vegetation density for SVS2 if .true.
    !logical           :: read_vgh_dens     = .false.
    !namelist /surface_cfgs/ read_vgh_dens
 
@@ -287,13 +291,15 @@ module sfc_options
    !#  Soil texture database/calculations for SVS land surface scheme
    !# * 'GSDE   '   : 8 layers of sand & clay info from Global Soil Dataset for ESMs (GSDE)
    !# * 'SLC    '   : 5 layers of sand & clay info from Soil Landscape of Canada (SLC)
-   !# * 'SOILGRIDS' : 7 layers of sand & clay info from ISRIC ? World Soil Information
+   !# * 'SOILGRIDS' : 7 layers of sand & clay info from ISRIC World Soil Information
+   !# * 'SOILGRIDSV2' : 6 layers of sand, clay, silt, bulk density, & oc info from ISRIC World Soil Information
    character(len=16) :: soiltext    = 'GSDE'
    namelist /surface_cfgs/ soiltext
-   character(len=*), parameter :: SOILTEXT_OPT(3) = (/ &
+   character(len=*), parameter :: SOILTEXT_OPT(4) = (/ &
         'GSDE     ',  &
         'SLC      ',  &
-        'SOILGRIDS' &
+        'SOILGRIDS  ',  &
+        'SOILGRIDSV2'   &
         /)
 
    !# If .true., SVS1 simulates soil freezing and thawing and its impact on hydrology

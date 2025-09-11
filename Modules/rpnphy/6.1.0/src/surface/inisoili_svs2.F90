@@ -33,20 +33,25 @@ subroutine inisoili_svs2(ni, trnch)
 
    integer :: i, k, kk
    REAL b, usb, fb, crit1_wfcint, crit2_wfcint, soillayer_depth, beta_soc
-   REAL :: depth_sapric = 1., & ! Depth (m) where the soil properties reach sapric values (Decharm et al. 2016)
-           depth_fibric = 0.01  ! Depth (m) where the soil properties start to depart from fibric values (Decharm et al. 2016)
+   REAL :: rho_silt = 2692., & ! Density of silt (kg/m3)
+           rho_sand = 2656., & ! Density of sand (kg/m3)
+           rho_clay = 2761.    ! Density of clay (kg/m3)
    
    ! "geo" variables are on the levels of the geophysical soil texture datbase
    REAL, dimension(ni,nl_stp) :: wsat_geo, wwilt_geo, wfc_geo, b_geo, psisat_geo, &
-           ksat_geo, wfcint_geo, fb_geo ,quartz_geo,rhosoil_geo,conddry_geo,condsld_geo, soilhcapz_dry
+           ksat_geo, wfcint_geo, fb_geo ,quartz_geo,rhosoil_geo,conddry_geo,condsld_geo, &
+           soilhcapz_dry_geo, fvom_geo, rbom_geo
+   REAL :: fmom_geo,   rho_sms_geo, rho_bms_geo, rho_b_geo, rho_bom_geo
+
    ! 100% soil organic content variables 
-   REAL, dimension(ni,nl_svs) :: wsat_soc, wwilt_soc, wfc_soc, b_soc, psisat_soc, &
-           ksat_soc, wfcint_soc, fb_soc ,conddry_soc,condsld_soc, hcap_soc
+   REAL, dimension(ni,nl_svs) :: rbom_soc
+   REAL :: wsat_soc, wwilt_soc, wfc_soc, b_soc, psisat_soc, &
+           ksat_soc, wfcint_soc, fb_soc ,conddry_soc,condsld_soc, hcap_soc, fs_vom
    real, pointer, dimension(:) :: zcgsat, zgrkef, zdraindens, zslop
 
    ! variables on the levels of SVS
-   real, pointer, dimension(:,:) :: zbcoef, zclay, zfbcof, zksat, zpsisat, zsand, zwfc, zwfcint, zwsat, zwwilt 
-   real, pointer, dimension(:,:) :: zconddry, zcondsld, zquartz, zrhosoil, zsoilhcapz_dry, zsoc
+   real, pointer, dimension(:,:) :: zbcoef, zclay, zfbcof, zksat, zpsisat, zsand, zwfc, zwfcint, zwsat, zwwilt, zfvom 
+   real, pointer, dimension(:,:) :: zconddry, zcondsld, zquartz, zrhosoil, zsoilhcapz_dry, zgravel, zbulksoil, zoc, zsilt
 
 
   
@@ -60,21 +65,27 @@ subroutine inisoili_svs2(ni, trnch)
 
 
    MKPTR2D(zbcoef, bcoef)
+   MKPTR2D(zbulksoil , bulksoil)
    MKPTR2D(zclay, clay)
    MKPTR2D(zconddry, conddry)
    MKPTR2D(zcondsld, condsld)  
    MKPTR2D(zfbcof, fbcof)
+   MKPTR2D(zfvom , fvom) ! volumetric fraction of soil organic content
+   MKPTR2D(zgravel , gravel)
    MKPTR2D(zksat, ksat)
+   MKPTR2D(zoc , oc)
    MKPTR2D(zpsisat , psisat)
    MKPTR2D(zquartz, quartz)  
    MKPTR2D(zrhosoil, rhosoil)  
    MKPTR2D(zsand, sand)
+   MKPTR2D(zsilt, silt)
    MKPTR2D(zwfc, wfc)
    MKPTR2D(zwfcint, wfcint)
    MKPTR2D(zwsat, wsat)
    MKPTR2D(zwwilt , wwilt)
    MKPTR2D(zsoilhcapz_dry , soilhcapz_dry)
-   MKPTR2D(zsoc , soc)
+
+
    !call subroutine to compute layer thicknesses
    call layer_thickness()
 
@@ -84,6 +95,7 @@ subroutine inisoili_svs2(ni, trnch)
    ! but the weights are the same !
 
    ! Compute averaged values for sand and clay for each layer when SOILGRID is used
+
    if ( soiltext == "SOILGRIDS" ) then   
       do i=1,ni
          do k=1,(nl_stp-1)
@@ -93,9 +105,12 @@ subroutine inisoili_svs2(ni, trnch)
       enddo
    endif
 
+
+
    !     Computer soil properties for GEO layers
    do i=1,ni
       do k=1,nl_stp
+
          wsat_geo  (i,k)  =  -0.00126   * zsand(i,k) + 0.489
          wwilt_geo (i,k)  =  37.1342e-3 * sqrt(max(1.,zclay(i,k)))
          wfc_geo   (i,k)  =  89.0467e-3 * max(1.,zclay(i,k))**0.3496
@@ -107,6 +122,7 @@ subroutine inisoili_svs2(ni, trnch)
          usb               =  1./b
          fb                =  b**usb/(b-1.) * ((3.*b+2.)**(1.-usb)-(2.*b+2.)**(1.-usb))
          fb_geo(i,k)      =  fb
+
          ! Compute water content at field capacity along sloping aquifer based on Soulis et al. 2012
          ! Ensure that wc at fc stays between wilting point and saturation
 
@@ -148,16 +164,69 @@ subroutine inisoili_svs2(ni, trnch)
 
 !       Soil heat capacity
         if ((zsand(i,k)+zclay(i,k)) .gt. epsilon_svs) then
-            ! From Lawrence and Slater 2008
-            soilhcapz_dry(i,k) = (2.128*zsand(i,k) + 2.385*zclay(i,k))/(zsand(i,k)+zclay(i,k))*1.E6
+            ! From Lawrence and Slater 2008, 
+            soilhcapz_dry_geo(i,k) = (2.128*zsand(i,k) + 2.385*zclay(i,k))/(zsand(i,k)+zclay(i,k))*1.E6
         else    
-            ! Use previous formulation in SVS - constant value
-            soilhcapz_dry(i,k) = 2700. * 733.
+            ! Previous formulation used in SVS - constant value
+            soilhcapz_dry_geo(i,k) = 2700. * 733.
         endif
 
 
       enddo
    enddo
+
+   !     Computer fraction of soil organic matter for GEO layers
+   if (read_oc) then
+
+      ! Initialize rbom_soc calculated on SVS levels
+      rbom_soc = 0.
+
+      do i=1,ni
+         do k=1,nl_stp
+            ! Theory and variables explained in Decharme (2025) 
+            ! zoc(i,k)*1E-2 is SOC mass fraction [kg/kg]
+            ! zclay(i,k)*1E-2 is clay mass fraction [kg/kg], same for sand, and sild
+            ! zbulksoil(i,k) is bulk density of the fine earth fraction [kg/m3]
+            ! zgravel(i,k)*1E-2 is volumetric fraction of coarse fragments [m3/m3]
+
+
+            if (zbulksoil(i,k) .gt. epsilon_svs .and. zoc(i,k) .gt. epsilon_svs) then 
+
+               fmom_geo = 1.848 * (zoc(i,k)*1E-2)**(0.967) 
+               fmom_geo = max(min(fmom_geo, 1.),0.)
+
+               rho_sms_geo = 1./(zclay(i,k)*1E-2 / rho_clay + zsilt(i,k)*1E-2 / rho_silt + zsand(i,k)*1E-2 / rho_sand)
+               rho_bms_geo = (1. - wsat_geo(i,k)) * rho_sms_geo 
+               rho_b_geo   = zbulksoil(i,k) * (1.- zgravel(i,k)*1E-2)
+
+               if (1. / rho_b_geo - (1.-fmom_geo)/rho_bms_geo .gt. epsilon_svs) then
+                  rho_bom_geo = fmom_geo / (1. / rho_b_geo - (1.-fmom_geo)/rho_bms_geo)
+
+                  fvom_geo(i,k) =  fmom_geo * rho_b_geo / rho_bom_geo
+                  fvom_geo(i,k) = max(min(fvom_geo(i,k), 1.),0.)
+
+                  rbom_geo(i,k) = rho_bom_geo *1E-3
+                  rbom_geo(i,k) = max(min(rbom_geo(i,k), 1.),0.)
+
+               else
+                  fvom_geo(i,k) = 0.
+                  rbom_geo(i,k) = 0.
+               endif
+
+            else
+               rbom_geo(i,k) = 0.
+               fvom_geo(i,k) = 0.
+            endif
+
+         enddo
+      enddo
+   else
+      ! Force variables for soil organic to 0
+      rbom_geo = 0.
+      rbom_soc = 0.
+      fvom_geo = 0.
+   endif
+
    ! "Map" GEO soil properties unto model soil layers
    Do i = 1 , ni
       Do k = 1, nl_svs
@@ -176,7 +245,11 @@ subroutine inisoili_svs2(ni, trnch)
             zcondsld  (i,k)  = zcondsld  (i,k) + condsld_geo  (i,kk)  * weights( k , kk)
             zquartz   (i,k)  = zquartz   (i,k) + quartz_geo   (i,kk)  * weights( k , kk)
             zrhosoil  (i,k)  = zrhosoil  (i,k) + rhosoil_geo  (i,kk)  * weights( k , kk)
-            zsoilhcapz_dry  (i,k)  = zsoilhcapz_dry  (i,k) + soilhcapz_dry  (i,kk)  * weights( k , kk)
+            zsoilhcapz_dry  (i,k)  = zsoilhcapz_dry  (i,k) + soilhcapz_dry_geo  (i,kk)  * weights( k , kk)
+
+            ! Soil organic matter variables
+            zfvom  (i,k)  = zfvom  (i,k) + fvom_geo  (i,kk)  * weights( k , kk)
+            rbom_soc  (i,k)  = rbom_soc  (i,k) + rbom_geo  (i,kk)  * weights( k , kk)
 
          enddo
       enddo
@@ -189,73 +262,62 @@ subroutine inisoili_svs2(ni, trnch)
       zgrkef(i)   = 2.* zdraindens(i) * zslop(i)
 
    enddo
-   !     Computer 100% soil organic content properties for typical peat soil profile (Decharme et al. 2016)
-   do i=1,ni
-          do k=1,nl_svs
 
-         if (k .EQ. 1) then
-            soillayer_depth = delz(k) * 0.5
-         else
-            soillayer_depth = soillayer_depth + (delz(k) + delz(k-1))*0.5
-         endif
+   !     Computer 100% soil organic matter properties (Decharme 2025)
+   if (read_oc) then
+      
+      do i=1,ni
+         do k=1,nl_svs
 
-         beta_soc = log(0.845/0.93)/log(depth_sapric/depth_fibric) ! See Table 1 in Decharme et al. 2016
-         wsat_soc  (i,k)  =  0.93 * (soillayer_depth/depth_fibric)**(beta_soc)
-         wsat_soc     (i,k)  =  min(max( wsat_soc(i,k), 0.845), 0.93) ! Bound the value to min and max
+            if (k .EQ. 1) then
+               soillayer_depth = delz(k) * 0.5
+            else
+               soillayer_depth = soillayer_depth + (delz(k) + delz(k-1))*0.5
+            endif
 
-         beta_soc = log(0.222/0.073)/log(depth_sapric/depth_fibric)
-         wwilt_soc (i,k)  =  0.073 * (soillayer_depth/depth_fibric)**(beta_soc)
-         wwilt_soc     (i,k)  =  min(max( wwilt_soc(i,k), 0.073), 0.222)
 
-         beta_soc = log(0.719/0.369)/log(depth_sapric/depth_fibric)
-         wfc_soc   (i,k)  =  0.369 * (soillayer_depth/depth_fibric)**(beta_soc)
-         wfc_soc     (i,k)  =  min(max( wfc_soc(i,k), 0.369), 0.719)
+            wsat_soc    =  0.95 - 0.437 * rbom_soc(i,k)
+            b_soc       =  2.933 + 0.442 * rbom_soc(i,k)**(0.463) + exp(1.321 * rbom_soc(i,k))
+            psisat_soc  = abs((101.633 * rbom_soc(i,k)**4 - 46.913 * rbom_soc(i,k)**5 - 61.625 * rbom_soc(i,k)**(2.635)) * 0.0168**(rbom_soc(i,k)))
+            ksat_soc    = 10**(-7.955 - 1.89 * LOG10( min(soillayer_depth,3.) + 0.068) - 2.96 * LOG10( min(0.25, rbom_soc(i,k)) + 0.045)) 
 
-         beta_soc = log(0.0101/0.0103)/log(depth_sapric/depth_fibric)
-         psisat_soc(i,k)  =  0.0103 * (soillayer_depth/depth_fibric)**(beta_soc)
-         psisat_soc     (i,k)  =  min(max( psisat_soc(i,k), 0.0101), 0.0103)
+            wfc_soc     = 3.1486 * 0.12**rbom_soc(i,k) * rbom_soc(i,k)**0.70
+            wwilt_soc   = 0.9355 * 0.20**rbom_soc(i,k) * rbom_soc(i,k)**0.71
 
-         beta_soc = log((1.E-7)/(2.8E-4))/log(depth_sapric/depth_fibric)
-         ksat_soc  (i,k)  = 2.8E-4 * (soillayer_depth/depth_fibric)**(beta_soc)
-         ksat_soc     (i,k)  =  min(max( ksat_soc(i,k), 1.E-7), 2.8E-4)
+            hcap_soc    = rbom_soc(i,k)*1E3 / (1. - wsat_soc) * 1972.
+            condsld_soc = 0.25 
+            conddry_soc = 0.05   
 
-         beta_soc = log(12./2.7)/log(depth_sapric/depth_fibric)
-         b_soc     (i,k)  =  2.7 * (soillayer_depth/depth_fibric)**(beta_soc)
-         b_soc     (i,k)  =  min(max( b_soc(i,k), 2.7), 12.)
+            fs_vom =  zfvom(i,k) * (1. - wsat_soc) / (1. - zwsat  (i,k))
 
-         hcap_soc(i,k) = 2.5E6
 
-         condsld_soc(i,k) =  0.25 
+            ! Calculating soil properties accounting for soil organic matter
 
-         conddry_soc(i,k) = 0.05   
+           ! Arithmetic mean
+            zwsat  (i,k)  = (1.-zfvom(i,k)) * zwsat  (i,k) + zfvom(i,k) * wsat_soc 
+            zwwilt (i,k)  = (1.-zfvom(i,k)) * zwwilt  (i,k) + zfvom(i,k) * wwilt_soc 
+            zwfc   (i,k)  = (1.-zfvom(i,k)) * zwfc  (i,k) + zfvom(i,k) * wfc_soc 
+            zpsisat(i,k)  = (1.-zfvom(i,k)) * zpsisat  (i,k) + zfvom(i,k) * psisat_soc  
+            zsoilhcapz_dry (i,k) = (1.-fs_vom) * zsoilhcapz_dry  (i,k) +fs_vom * hcap_soc 
 
+            ! Geometric mean
+            zcondsld(i,k) = zcondsld(i,k)**(1.-zfvom(i,k)) * condsld_soc**zfvom(i,k)
+            zksat  (i,k)  = zksat(i,k)**(1.-zfvom(i,k)) * ksat_soc**zfvom(i,k)
+            zconddry  (i,k)  = ( (zconddry(i,k) * conddry_soc)**0.5  / (conddry_soc**0.5 *(1.-zfvom(i,k)) + zconddry(i,k)**0.5 * zfvom(i,k)) )**2
+
+            b                 = (1.-zfvom(i,k)) * zbcoef  (i,k) + zfvom(i,k) * b_soc 
+            zbcoef     (i,k)  =  b
+            usb               =  1./b
+            fb                =  b**usb/(b-1.) * ((3.*b+2.)**(1.-usb)-(2.*b+2.)**(1.-usb))
+            zfbcof(i,k)      =  fb
+
+         enddo
       enddo
-   enddo
 
-   ! model soil layers incluting soil organic content
+   endif
+
    Do i = 1 , ni
       Do k = 1, nl_svs
-
-
-         ! Arithmetic mean
-
-         zwsat  (i,k)  = (1.-zsoc(i,k)/100.) * zwsat  (i,k) + zsoc(i,k)/100. * wsat_soc  (i,k)
-         zwwilt (i,k)  = (1.-zsoc(i,k)/100.) * zwwilt  (i,k) + zsoc(i,k)/100. * wwilt_soc  (i,k)
-         zwfc   (i,k)  = (1.-zsoc(i,k)/100.) * zwfc  (i,k) + zsoc(i,k)/100. * wfc_soc  (i,k)
-         zpsisat(i,k)  = (1.-zsoc(i,k)/100.) * zpsisat  (i,k) + zsoc(i,k)/100. * psisat_soc  (i,k)
-         zsoilhcapz_dry (i,k) = (1.-zsoc(i,k)/100.) * zsoilhcapz_dry  (i,k) + zsoc(i,k)/100. * hcap_soc  (i,k)
-
-         ! Geometric mean
-         zksat  (i,k)  = zksat(i,k)**(1.-zsoc(i,k)/100.) * ksat_soc(i,k)**(zsoc(i,k)/100.)
-         zconddry  (i,k)  = zconddry(i,k)**(1.-zsoc(i,k)/100.) * conddry_soc  (i,k)**(zsoc(i,k)/100.)
-         zcondsld  (i,k)  = zcondsld(i,k)**(1.-zsoc(i,k)/100.) * condsld_soc(i,k)**(zsoc(i,k)/100.)
-
-         ! bcoeff and fbcoeff, Arithmetic mean
-         b                 =  (1.-zsoc(i,k)/100.) * zbcoef  (i,k) + zsoc(i,k)/100. * b_soc  (i,k)
-         zbcoef     (i,k)  =  b
-         usb               =  1./b
-         fb                =  b**usb/(b-1.) * ((3.*b+2.)**(1.-usb)-(2.*b+2.)**(1.-usb))
-         zfbcof(i,k)      =  fb
 
          ! Compute water content at field capacity along sloping aquifer based on Soulis et al. 2012
          ! Ensure that wc at fc stays between wilting point and saturation
