@@ -25,7 +25,7 @@
            WTA, CG, PSNGRVL,  & 
            Z0H, ALGR, EMGR, PSNVH, PSNVHA,   &
            ALVA, LAIVA, CVPA, EVA, Z0HA, Z0MVG, RGLA, STOMRA ,&  
-           GAMVA, N, SOILHCAPZ, SOILCONDZ, CONDDRY, CONDSLD )
+           GAMVA, N, SOILHCAPZ, SOILCONDZ, CONDDRY, CONDMINFAC, CONDSLD)
          !
         use tdpack_const, only: PI
         use svs_configs
@@ -52,7 +52,7 @@
       REAL Z0HA(N), Z0MVG(N), RGLA(N), STOMRA(N), STOMRVH(N), STOMRVL(N)
       REAL GAMVL(N), GAMVH(N), GAMVA(N)
       REAL SOILHCAPZ(N,NL_SVS), SOILCONDZ(N,NL_SVS)
-      REAL CONDDRY(N,NL_SVS), CONDSLD(N,NL_SVS) 
+      REAL CONDDRY(N,NL_SVS), CONDMINFAC(N,NL_SVS), CONDSLD(N,NL_SVS)
       
 !Author
 !          S. Belair et al. (January 2009)
@@ -102,21 +102,21 @@
 ! GAMVH    stomatal resistance param. for HIGH vegetation
 ! GAMVL    stomatal resistance param. for LOW  vegetation
 ! Z0       momentum roughness length (no snow)
-! CLAY     percentage of clay in soil (mean of 3 layers)
-! SAND     percentage of sand in soil (mean of 3 layers)  
+! CLAY     percentage of clay of surface soil layer 
+! SAND     percentage of sand of surface soil layer   
 ! DECI     fraction of high vegetation that is deciduous
 ! EVER     fraction of high vegetation that is evergreen
 ! LAID     LAI of deciduous trees
 ! CONDSLD  Soilds thermal conductivity
-! CONDDRY  Dry thermal conductivit
+! CONDDRY  Dry thermal conductivity
+! CONDMINFAC  Factor applied to the thermal conductivity of minerals (only when soilcond = 1)
 !
 !           - Output -
 ! WTA      Weights for SVS surface types as seen from SPACE
 ! CG       heat capacity of the bare soil
 ! PSNGRVL  fraction of the bare soil or low veg. covered by snow
 ! Z0H      agg. roughness length for heat transfer considering snow
-! ALGR     albedo of bare ground (soil)
-! EMGR     emissivity of bare ground (soil)
+! ALGR     albedo of bare ground (soil)GAMVAil)
 ! PSNVH    fraction of HIGH vegetation covered by snow
 ! PSNVHA   fraction of HIGH vegetation covered by snow as seen from
 !          the ATMOSPHERE 
@@ -136,6 +136,7 @@ include "isbapar.cdk"
 
 !
       INTEGER I, K
+      INTEGER OPT_SOILCOND
 !
       REAL LAMI, CI, DAY, RHOI, RHOW, CW, LAMW
 ! 
@@ -143,6 +144,7 @@ include "isbapar.cdk"
       REAL EDRYSAND, EWETSAND, EDRYCLAY, EWETCLAY
 !      
       REAL LOG_CONDI, LOG_CONDW, XF, XU, WORK1, WORK2, WORK3, CONDSAT
+      REAL LAM_ZERO, k_min, k_air, k_ice 
       REAL SATDEG, KERSTEN
 !
       real, dimension(n) :: a, b, cnoleaf, cva, laivp, lams, lamsv, &
@@ -157,8 +159,9 @@ include "isbapar.cdk"
 !***********************************************************************
 !
 !
-!
-!
+      OPT_SOILCOND = 0 ! Option for the Calculation of soil thermal conductivity 
+                   ! 0: use the model from Peters-Lidard et al. (1998) for frozen soil that involve the Kersten number (Johanssen, 1975)
+                   ! 1: Use the model from Tian et al. (2016)
 !
 !                                    Define some constants for
 !                                    the ice
@@ -168,7 +171,7 @@ include "isbapar.cdk"
 !
       LAMI   = 2.22
       CI     = 2.106E3
-      RHOI   = 917  
+      RHOI   = 917.  
       DAY    = 86400.
 
       LAMW = 0.57 ! Thermal conductivity of water
@@ -223,10 +226,11 @@ include "isbapar.cdk"
 !                          First calculate the conductivity of snow
 !
       DO I=1,N
+
+        ! Snow thermal conductitivy
         LAMS(I) = LAMI * RHOS(I)**1.88
-        ZCS(I) = 2.0 * SQRT( PI/( LAMS(I) * 1000* RHOS(I) *CI*DAY) )
-!
         LAMSV(I) = LAMI * RHOSV(I)**1.88
+        ZCS(I) = 2.0 * SQRT( PI/( LAMS(I) * 1000* RHOS(I) *CI*DAY) )
         ZCSV(I) = 2.0 * SQRT( PI/(LAMSV(I)* 1000*RHOSV(I) *CI*DAY) )
 !
       END DO    
@@ -462,7 +466,8 @@ include "isbapar.cdk"
 !                       database as is here... 
 !
       DO I=1,N
-!                      A few constraints 
+!        A few constraints
+!	     Take the texture of the surface soil layer 
          IF((CLAY(I)+SAND(I)).gt.0.0) THEN         
             A(I)= SAND(I) / ( CLAY(I) + SAND(I) ) 
          ELSE         
@@ -539,10 +544,8 @@ include "isbapar.cdk"
 
 !
 !
-!       10.      SOIL THERMAL PROPERTIES PROFILE using PL98
+!       10.      SOIL THERMAL PROPERTIES PROFILE (using PL98 or Tian 2016)
 !               ------------------------------------------
-!
-!
        LOG_CONDI = LOG(LAMI)
        LOG_CONDW = LOG(LAMW)
 
@@ -550,33 +553,59 @@ include "isbapar.cdk"
 
           DO K=1,NL_SVS
 
-!                        Kersten parameter for thermal conductivity
-             XF = WF(I,K) / (WF(I,K) + MAX(WD(I,K),0.001))
-             XU = (1.0-XF) * WSAT(I,K)
+              IF (OPT_SOILCOND == 0) THEN     !!!!!!!!!!! PL 1998
+                 !Kersten parameter for thermal conductivity
+                 XF = WF(I,K) / (WF(I,K) + MAX(WD(I,K),0.001))
+                 XU = (1.0-XF) * WSAT(I,K)
+    
+                 WORK1   = LOG(CONDSLD(I,K))*(1.0-WSAT(I,K))
+                 WORK2   = LOG_CONDI*(WSAT(I,K)-XU)
+                 WORK3   = LOG_CONDW*XU
+                 CONDSAT = EXP(WORK1+WORK2+WORK3)
+                 SATDEG  = MAX(0.1, (WF(I,K) + WD(I,K))/WSAT(I,K))  ! degree of saturation
+                 SATDEG  = MIN(1.0,SATDEG)
+                 KERSTEN  = LOG10(SATDEG) + 1.0               ! Kersten number
+    
+                 !Put in a smooth transition from thawed to frozen soils:
+                 !simply linearly weight Kersten number by frozen fraction
+                 !in soil:
+                 KERSTEN  = (1.0-XF)*KERSTEN + XF *SATDEG
+    
+                 !Thermal conductivity
+                 SOILCONDZ(I,K) = KERSTEN*(CONDSAT-CONDDRY(I,K)) + CONDDRY(I,K)
+  
+              ELSE IF (OPT_SOILCOND == 1) THEN     !!!!!!!!!!! Tian 2016
+                  IF (WD(I,K) > 0.2*WSAT(I,K)) THEN
+                      LAM_ZERO = LAMW
+                  ELSE
+                      IF (WF(I,K) > 0.5*WSAT(I,K)) THEN
+                          LAM_ZERO = LAMI
+                      ELSE
+                          LAM_ZERO = 0.025 !thermal conductivity of air
+                      ENDIF
+                  ENDIF
 
-             WORK1   = LOG(CONDSLD(I,K))*(1.0-WSAT(I,K))
-             WORK2   = LOG_CONDI*(WSAT(I,K)-XU)
-             WORK3   = LOG_CONDW*XU
-             CONDSAT = EXP(WORK1+WORK2+WORK3)
-             SATDEG  = MAX(0.1, (WF(I,K) + WD(I,K))/WSAT(I,K))  ! degree of saturation
-             SATDEG  = MIN(1.0,SATDEG)
-             KERSTEN  = LOG10(SATDEG) + 1.0               ! Kersten number
+                  k_min = (2/3)*(1+(CONDSLD(I,K)/LAM_ZERO-1)*CONDMINFAC(I,K))**(-1) + &
+                          (1/3)*(1+(CONDSLD(I,K)/LAM_ZERO-1)*(1-2*CONDMINFAC(I,K)))**(-1)
 
-!                       Put in a smooth transition from thawed to frozen soils:
-!                       simply linearly weight Kersten number by frozen fraction
-!                       in soil:
-             KERSTEN  = (1.0-XF)*KERSTEN + XF *SATDEG
+                  k_ice = (2/3)*(1+(LAMI/LAM_ZERO-1)*0.333*(1-WF(I,K)/WSAT(I,K)))**(-1) + (1/3)*(1+(LAMI/LAM_ZERO-1)*(1-2*0.333*(1-WF(I,K)/WSAT(I,K))))**(-1)
+                  
+                  k_air = (2/3)*(1+(0.025/LAM_ZERO-1)*0.333*(1-(WSAT(I,K)-WD(I,K)-WF(I,K))/WSAT(I,K)))**(-1) + &
+                          (1/3)*(1+(0.025/LAM_ZERO-1)*(1-2*0.333*(1-(WSAT(I,K)-WD(I,K)-WF(I,K))/WSAT(I,K))))**(-1)
 
-!                       Thermal conductivity
-             SOILCONDZ(I,K) = KERSTEN*(CONDSAT-CONDDRY(I,K)) + CONDDRY(I,K)
+                  SOILCONDZ(I,K) = (WD(I,K)*LAMW + k_ice*WF(I,K)*LAMI + k_air*(WSAT(I,K) - WD(I,K) - WF(I,K))*0.025 + k_min*(1 - WSAT(I,K))*CONDSLD(I,K)) / &
+                                  (WD(I,K) +k_ice*WF(I,K)+k_air*(WSAT(I,K)-WD(I,K)-WF(I,K))+k_min*(1-WSAT(I,K)))
 
-!                       Heat capacity (J m-3 K-1)
-             SOILHCAPZ(I,K) = (1. - WSAT(I,K)) * 2700. * 733. + WD(I,K) * CW * RHOW &
-                             + WF(I,K) * CI * RHOI
+              ENDIF
 
+              !Heat capacity (J m-3 K-1)
+              SOILHCAPZ(I,K) = (1. - WSAT(I,K)) * 2700. * 733. + WD(I,K) * CW * RHOW &
+                         + WF(I,K) * CI * RHOI
+          
           END DO
 
        END DO
+
 
       RETURN
       END

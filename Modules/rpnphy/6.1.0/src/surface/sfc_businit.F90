@@ -104,7 +104,7 @@ subroutine sfc_businit(moyhr,ni,nk)
 
    !--------   Speficic parameter FOR SVS -----------------
 
-   integer :: wunfrz,satsfc
+   integer :: condminfac, satsfc, wmpfac, wunfrz
 
    !--------   Speficic parameter FOR SVS 2 -----------------
    character(len=2) :: ns
@@ -322,8 +322,9 @@ subroutine sfc_businit(moyhr,ni,nk)
       PHYVAR3D1(clay,         'VN=clay         ;ON=J2  ;VD=percentage of clay in soil                     ;VS=A*'//nstpl//';VB=p0        ;MIN=0')
       PHYVAR3D1(clayen,       'VN=clayen       ;ON=2H  ;VD=perc. of clay in soil (E)                      ;VS=A*'//nstel//';VB=e1;IN=J2  ;MIN=0')
       PHYVAR3D1(co2i1,        'VN=co2i1        ;ON=CO3 ;VD=CO2 CONCENTRATION   CTEM                       ;VS=A*9          ;VB=p0')
-      PHYVAR3D1(conddry,      'VN=conddry      ;ON=CDRY;VD=dry thermal conductivity for soil              ;VS=A*'//ngl//'          ;VB=p0')
-      PHYVAR3D1(condsld,      'VN=condsld      ;ON=CSLD;VD=thermal conductivity for soil solids           ;VS=A*'//ngl//'          ;VB=p0')   
+      PHYVAR3D1(conddry,      'VN=conddry      ;ON=CDRY;VD=dry thermal conductivity for soil              ;VS=A*'//ngl//'    ;VB=p0')
+      PHYVAR3D1(condminfac,   'VN=condminfac   ;ON=CMNF;VD=facor thermal conductivity for minerals        ;VS=A*'//ngl//'    ;VB=p0')   
+      PHYVAR3D1(condsld,      'VN=condsld      ;ON=CSLD;VD=thermal conductivity for soil solids           ;VS=A*'//ngl//'    ;VB=p0')   
       PHYVAR2D1(cveg,         'VN=cveg         ;ON=CV  ;VD=thermal coefficient for canopy                                    ;VB=p0')
       PHYVAR2D1(cvh,          'VN=cvh          ;ON=CVH ;VD=thermal coefficient for canopy of high veg                        ;VB=p0')
       PHYVAR2D1(cvl,          'VN=cvl          ;ON=CVL ;VD=thermal coefficient for canopy of low veg                         ;VB=p0')
@@ -345,7 +346,7 @@ subroutine sfc_businit(moyhr,ni,nk)
       PHYVAR2D1(er,           'VN=er           ;ON=ER  ;VD=evapo rate from leaves(no frac)                                   ;VB=v0')
       PHYVAR2D1(etr,          'VN=etr          ;ON=ETR ;VD=evapotranspiration rate (no frac)                                 ;VB=v0')
       PHYVAR2D1(evergreen,    'VN=evergreen    ;ON=EVER;VD=frac. of high veg. that is evergreen                              ;VB=p0')
-      PHYVAR3D1(fbcof,        'VN=fbcof        ;ON=3G  ;VD=parameter derived from bcoef                   ;VS=A*'//ngl//'  ;VB=p0')
+      PHYVAR3D1(fbcof,        'VN=fbcof        ;ON=3G  ;VD=parameter derived from bcoef                   ;VS=A*'//ngl//'  ;VB=p0')    
       PHYVAR3D1(frootd,       'VN=frootd       ;ON=FRTD;VD=deep soil layer root density                   ;VS=A*'//ngl//'  ;VB=p0')
       PHYVAR2D1(fvapliq,      'VN=fvapliq      ;ON=HFLQ;VD=surf. evaporation (kg/m2 or mm)                                   ;VB=p0')
       PHYVAR2D1(fvapliqaf,    'VN=fvapliqaf    ;ON=AHFL;VD=accum. surf. evaporation (HFLQ) (kg/m2 or mm)                     ;VB=p0')
@@ -449,6 +450,7 @@ subroutine sfc_businit(moyhr,ni,nk)
       PHYVAR2D1(wflux,        'VN=wflux        ;ON=M8  ;VD=water flux from surface to atm.                                   ;VB=v0')
 ! wfluxaf --- seems to be replaced by accevap in SVS... 
 !      PHYVAR2D1(wfluxaf,      'VN=wfluxaf      ;ON=N7  ;VD=acc. of soil surface upward water flux                            ;VB=p0')
+      PHYVAR3D1(wmpfac,       'VN=wmpfac       ;ON=WMPF;VD=mult. factor applied for macropore activation  ;VS=A*'//ngl//'  ;VB=p0')
       PHYVAR3D1(wsat,         'VN=wsat         ;ON=WSAT;VD=vol. water content at saturation               ;VS=A*'//ngl//'  ;VB=p0')
       PHYVAR2D1(wsnow,        'VN=wsnow        ;ON=WSN ;VD=water in low-veg/bare-grnd snowpack                               ;VB=p1        ;MIN=0')
       PHYVAR2D1(wsnv,         'VN=wsnv         ;ON=WSV ;VD=water in under-high-veg snowpack                                  ;VB=p1        ;MIN=0')
