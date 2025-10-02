@@ -36,7 +36,7 @@ subroutine inisoili_svs(ni, trnch)
    integer :: i, k, kk, jj
    REAL b, usb, fb, crit1_wfcint, crit2_wfcint, ts
 
-   REAL, parameter :: mp_alpha = 0.85
+   REAL, parameter :: mp_alpha = 0.60
    REAL, parameter :: mp_beta = 3.64 !Weighted sand-to-clay ratio for the average tile over the GLSL domain
    
    ! "geo" variables are on the levels of the geophysical soil texture datbase
@@ -173,7 +173,8 @@ subroutine inisoili_svs(ni, trnch)
         wmpfac_geo(i,k) = 0.0
 
         if (MP_OPT == 1) then
-            wmpfac_geo(i,k) = (mp_alpha + (1 - mp_alpha)*(zclay(i,k) -zsand(i,k)/mp_beta)/100)
+            !wmpfac_geo(i,k) = (mp_alpha + (1 - mp_alpha)*(zclay(i,k) -zsand(i,k)/mp_beta)/100)
+            wmpfac_geo(i,k) = mp_alpha
         endif
          
       enddo
