@@ -52,6 +52,8 @@ LOGICAL    :: LALDZ0H
 !
 LOGICAL    :: LNOSOF   ! No parameterization of Subgrid Orography effects on atmospheric Forcing  
 LOGICAL    :: LSLOPE   ! Parameterization of homogeneous slope effect on atmospheric Forcing
+LOGICAL    :: LLONGWAVE_SVF   ! Parameterization of longwave radiation from the sky view factor of an homogeneous slope
+LOGICAL    :: LDIFFUSE_SVF   ! Parameterization of diffuse radiation from the sky view factor of an homogeneous slope
 LOGICAL    :: LVERTSHIFT ! vertical shift from atmospheric orography to surface orography
 LOGICAL    :: LVSHIFT_LW ! vertical shift for LW
 LOGICAL    :: LVSHIFT_PRCP ! vertical shift for Precip

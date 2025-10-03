@@ -113,14 +113,14 @@ REAL, SAVE       :: XZ0ICEZ0SNOW
 !
 REAL, SAVE       :: XTAU_SMELT
 ! Snow impurity deposition rates
-REAL,DIMENSION(5), SAVE :: XIMPUR_DRY !(g m-2 s-1)
-REAL,DIMENSION(5), SAVE     :: XIMPUR_WET !(g m-2 s-1)
+REAL,DIMENSION(5), SAVE  :: XIMPUR_DRY !(g m-2 s-1)
+REAL,DIMENSION(5), SAVE  :: XIMPUR_WET !(g m-2 s-1)
 REAL, DIMENSION(5), SAVE :: XSCAVEN_COEF !Scavenging efficiency of the differrent impurities
 
 !
 !	 Grooming and Snowmaking option by P.Spandre 20160211
-REAL,SAVE                        :: XPSR_SNOWMAK
-REAL,SAVE                       :: XRHO_SNOWMAK
+REAL, SAVE                      :: XPSR_SNOWMAK
+REAL, SAVE                      :: XRHO_SNOWMAK
 REAL, SAVE                      :: XPTA_SEUIL
 REAL, SAVE                      :: XPR_A
 REAL, SAVE                      :: XPR_B
@@ -134,20 +134,20 @@ REAL, SAVE                      :: XPP_H3
 REAL, SAVE                      :: XPP_H4
 REAL, SAVE                      :: XWT
 REAL, SAVE                      :: XPTR
-REAL, DIMENSION(1000), SAVE        :: XPROD_SCHEME
+REAL, DIMENSION(1000), SAVE     :: XPROD_SCHEME
 REAL, DIMENSION(4), SAVE        :: XSM_END
-INTEGER,SAVE                    :: XFREQ_GRO
+INTEGER, SAVE                   :: XFREQ_GRO
 !
 ! snowpappus transport scheme tunable parameters
 !
-REAL, SAVE        ::XAGELIMPAPPUS !maximum age of snow layer for which wind speed threshold is set to fresh threshold wind speed
+REAL, SAVE        :: XAGELIMPAPPUS !maximum age of snow layer for which wind speed threshold is set to fresh threshold wind speed
 !(days)
-REAL, SAVE        ::XAGELIMPAPPUS2 !maximum age of snow for using Naaim96 formulation of terminall fall speed in snowpappus
-REAL, SAVE        ::XWINDTHRFRESH !5 m wind speed threshold for transport of freshly fallen ( or deposited ) snow (m/s) 
-REAL, SAVE        ::XRHODEPPAPPUS, XDIAMDEPPAPPUS, XSPHDEPPAPPUS
+REAL, SAVE        :: XAGELIMPAPPUS2 !maximum age of snow for using Naaim96 formulation of terminall fall speed in snowpappus
+REAL, SAVE        :: XWINDTHRFRESH !5 m wind speed threshold for transport of freshly fallen ( or deposited ) snow (m/s) 
+REAL, SAVE        :: XRHODEPPAPPUS, XDIAMDEPPAPPUS, XSPHDEPPAPPUS
 !density (kg/m3), optical diameter (m) and sphericity of wind blown deposited snow
-REAL, SAVE        ::XLFETCHPAPPUS !constant fetch distance applied to all points for snowpappus blowing snow flux calculation (m)  
-REAL, SAVE        ::XDEMAXVFALL !when option MIXT is chosen for terminal fall speed calculation, minimum dendricity to have full
+REAL, SAVE        :: XLFETCHPAPPUS !constant fetch distance applied to all points for snowpappus blowing snow flux calculation (m)  
+REAL, SAVE        :: XDEMAXVFALL !when option MIXT is chosen for terminal fall speed calculation, minimum dendricity to have full
 ! young fall speed
 !
 ! coefficient for gust diagnosis from average wind ! for CROCUS now in namelist (see XCOEF_FF below)
@@ -448,7 +448,7 @@ REAL, PARAMETER :: XVSIZEMIN = 3.E-4 !  minimum size decrease
 ! modif_EB pour sublim
 ! a pour but de tenir compte du fait que le vent moyen est < rafales
 ! on en tient compte egalement pour diminuer la duree de l'effet
-REAL, PARAMETER :: XCOEF_FF = 1.0 ! coefficient for gust diagnosis from average wind
+REAL, PARAMETER :: XCOEF_FF = 1.25 ! coefficient for gust diagnosis from average wind
 ! NB in Crocus, some parametrisation are made with average wind -> XCOEF_FF in Crocus should be 1.0
 ! See M. Lafaysse for this double choice 1.0 / 1.25
 ! Double choice 1.0 / 1.25 -> XCROCOEF_FF in namelist NAM_SURF_SNOW_CSTS for Crocus (See M. Lafaysse)
