@@ -392,7 +392,7 @@ subroutine svs(BUS, BUSSIZ, PTSURF, PTSURFSIZ, DT, KOUNT, TRNCH, N, M, NK)
                 bus(x(tsnow   ,1,2)) , bus(x(tsnow   ,1,1)) ,  &
                 bus(x(snvro   ,1,1)) , bus(x(snvdp   ,1,1)), &
                 bus(x(tsnowveg   ,1,2)) , bus(x(tsnowveg   ,1,1)), bus(x(tperm, 1,1)),   &
-                bus(x(wunfrz, 1,1)), &
+                bus(x(wunfrz, 1,1)), bus(x(wsat    ,1,1)), &
                 dwaterdt_surf,dwaterdt_deep, N )
 
       ELSE
